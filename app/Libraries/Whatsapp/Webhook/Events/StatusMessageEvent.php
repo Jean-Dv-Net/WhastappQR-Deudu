@@ -41,9 +41,9 @@ class StatusMessageEvent extends WebhookEvent
 
         /** @var \App\Models\Message $message */
         match ($event) {
-            'sent' => $this->handleSentEvent($message, $event),
-            'received' => $this->handleDeliveredEvent($message, $event),
-            'read' => $this->handleReadEvent($message, $event),
+            'sent' => $this->handleSentEvent($message),
+            'received' => $this->handleDeliveredEvent($message),
+            'read' => $this->handleReadEvent($message),
             default => null,
         };
 
@@ -62,7 +62,7 @@ class StatusMessageEvent extends WebhookEvent
         return $newPriority > $currentPriority;
     }
 
-    private function handleSentEvent(\App\Models\Message &$message, string $event): void
+    private function handleSentEvent(\App\Models\Message &$message): void
     {
         // We only updated if the status is lower priority than the current status
         if ($this->shouldUpdateStatus($message->getStatus(), "sent")) {
@@ -77,7 +77,7 @@ class StatusMessageEvent extends WebhookEvent
         ));
     }
 
-    private function handleDeliveredEvent(\App\Models\Message &$message, string $event): void
+    private function handleDeliveredEvent(\App\Models\Message &$message): void
     {
         // We only updated if the status is lower priority than the current status
         if ($this->shouldUpdateStatus($message->getStatus(), "delivered")) {
@@ -92,7 +92,7 @@ class StatusMessageEvent extends WebhookEvent
         ));
     }
 
-    private function handleReadEvent(\App\Models\Message &$message, string $event): void
+    private function handleReadEvent(\App\Models\Message &$message): void
     {
         // We only updated if the status is lower priority than the current status
         if ($this->shouldUpdateStatus($message->getStatus(), "read")) {
