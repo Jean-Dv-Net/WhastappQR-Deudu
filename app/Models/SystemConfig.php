@@ -56,7 +56,7 @@ class SystemConfig extends Model
                 'timezone' => 'America/Bogota'
             ],
             'auto_pause_on_error' => true,
-            'error_threshold_percentaje' => 15,
+            'error_threshold_percentage' => 15,
             'notifications' => [
                 'enabled' => true
             ]
