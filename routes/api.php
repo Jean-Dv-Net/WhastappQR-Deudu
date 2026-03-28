@@ -131,5 +131,17 @@ Route::prefix('v1')->group(function () {
             Route::put('/{batch}/reject', [\App\Http\Controllers\Api\V1\ValidatorBatch\RejectValidatorBatchController::class, '__invoke']);
         });
     });
+
+    Route::prefix('settings')->group(function () {
+        /**
+         * Get settings by key
+         */
+        Route::get('/{key}', [\App\Http\Controllers\Api\V1\Settings\GetSettingsController::class, '__invoke']);
+
+        /**
+         * Update or Create setting
+         */
+        Route::put('/{key}', [\App\Http\Controllers\Api\V1\Settings\PutSettingController::class, '__invoke']);
+    });
 });
 
