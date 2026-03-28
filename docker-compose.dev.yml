@@ -41,6 +41,11 @@ services:
       - ./:/var/www
     networks:
       - laravel-development
+    healthcheck:
+      test: ["CMD-SHELL", "php-fpm-healthcheck || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     depends_on:
       mongo:
         condition: service_started # Wait for postgres to start
@@ -93,6 +98,30 @@ services:
       - ./:/var/www
     networks:
       - laravel-development
+  
+  # The 'websocket' service runs Laravel Reverb for real-time WebSocket connections.
+  # -----------------------------------------------------------
+  # This service handles broadcasting events to the frontend via WebSockets.
+  # It shares the same codebase and environment as the 'php-fpm' service.
+  # The port can be configured via REVERB_PORT (default: 8080).
+  # -----------------------------------------------------------
+  websocket:
+    build:
+      context: .
+      dockerfile: ./.docker/common/php-fpm/Dockerfile
+      target: development
+    volumes:
+      # Mount the same storage volume as php-fpm for consistency
+      - ./:/var/www
+    env_file:
+      - .env
+    networks:
+      - laravel-development
+    restart: unless-stopped
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    depends_on:
+      php-fpm:
+        condition: service_healthy
 
   mongo:
     image: mongo:8
