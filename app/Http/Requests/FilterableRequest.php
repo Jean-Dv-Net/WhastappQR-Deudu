@@ -131,6 +131,19 @@ class FilterableRequest extends FormRequest
         }
     }
 
+    public function getValueByField(string $field): mixed
+    {
+        $filter = array_filter($this->getFilters()->all(), function ($f) use ($field) {
+            return $f->getField() === $field;
+        });
+
+        if (empty($filter)) {
+            return null;
+        }
+
+        return $filter[0]->getValue();
+    }
+
     /**
      * Get custom attributes for validator errors.
      */

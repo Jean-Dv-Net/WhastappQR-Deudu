@@ -155,12 +155,22 @@ Route::prefix('v1')->group(function () {
              * Update a campaign record
              */
             Route::put('/{record}', [\App\Http\Controllers\Api\V1\Campaign\Record\PutCampaignRecordController::class, '__invoke']);
+
+            /**
+             * Get campaign records
+             */
+            Route::get('/', [\App\Http\Controllers\Api\V1\Campaign\Record\GetCampaignRecordController::class, '__invoke']);
         });
+
+        /**
+         * Get campaign statistics by campaign id
+         */
+        Route::get('/{campaign_id}/statistics', [\App\Http\Controllers\Api\V1\Campaign\Statistics\GetCampaignStatisticsByCampaignIdController::class, '__invoke']);
 
         /**
          * Get campaign statistics
          */
-        Route::get('/{campaign_id}/statistics', [\App\Http\Controllers\Api\V1\Campaign\Statistics\GetCampaignStatisticsController::class, '__invoke']);
+        Route::get('/statistics', [\App\Http\Controllers\Api\V1\Campaign\Statistics\GetCampaignStatisticsController::class, '__invoke']);
     });
 
     Route::prefix('uploads')->group(function () {
