@@ -143,5 +143,12 @@ Route::prefix('v1')->group(function () {
          */
         Route::put('/{key}', [\App\Http\Controllers\Api\V1\Settings\PutSettingController::class, '__invoke']);
     });
+
+    Route::prefix('campaigns')->group(function () {
+        /**
+         * Create a campaign
+         */
+        Route::post('/', [\App\Http\Controllers\Api\V1\Campaign\PostCampaignController::class, '__invoke']);
+    });
 });
 
