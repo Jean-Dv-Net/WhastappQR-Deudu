@@ -96,4 +96,14 @@ class Campaign extends Model
     {
         return $this->hasMany(CampaignRecord::class, 'campaign_id', 'id');
     }
+
+    /**
+     * Get the statistics associated with the campaign.
+     *
+     * @return \MongoDB\Laravel\Relations\HasOne
+     */
+    public function statistics(): \MongoDB\Laravel\Relations\HasOne
+    {
+        return $this->hasOne(CampaignStatistic::class, 'campaign_id', 'id');
+    }
 }
