@@ -62,6 +62,26 @@ class Client
     }
 
     /**
+     * Get the API usage of the client.
+     *
+     * @return array The response from the 2Chat API.
+     * @throws ConnectionException
+     */
+    public static function getAPIUsage(): array
+    {
+        $apiKey = config('services.whatsapp.api_key');
+
+        $url = "https://api.p.2chat.io/open/info";
+
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/json',
+            'X-User-API-Key' => $apiKey,
+        ])->get($url);
+
+        return $response->json()['usage'];
+    }
+
+    /**
      * Send a Whatsapp message.
      *
      * @param WhatsappMessage $message The message to send.

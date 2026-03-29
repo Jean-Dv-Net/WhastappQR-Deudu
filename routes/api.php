@@ -131,5 +131,60 @@ Route::prefix('v1')->group(function () {
             Route::put('/{batch}/reject', [\App\Http\Controllers\Api\V1\ValidatorBatch\RejectValidatorBatchController::class, '__invoke']);
         });
     });
+
+    Route::prefix('settings')->group(function () {
+        /**
+         * Get settings by key
+         */
+        Route::get('/{key}', [\App\Http\Controllers\Api\V1\Settings\GetSettingsController::class, '__invoke']);
+
+        /**
+         * Update or Create setting
+         */
+        Route::put('/{key}', [\App\Http\Controllers\Api\V1\Settings\PutSettingController::class, '__invoke']);
+    });
+
+    Route::prefix('campaigns')->group(function () {
+        /**
+         * Create a campaign
+         */
+        Route::post('/', [\App\Http\Controllers\Api\V1\Campaign\PostCampaignController::class, '__invoke']);
+
+        Route::prefix('records')->group(function () {
+            /**
+             * Update a campaign record
+             */
+            Route::put('/{record}', [\App\Http\Controllers\Api\V1\Campaign\Record\PutCampaignRecordController::class, '__invoke']);
+
+            /**
+             * Get campaign records
+             */
+            Route::get('/', [\App\Http\Controllers\Api\V1\Campaign\Record\GetCampaignRecordController::class, '__invoke']);
+        });
+
+        /**
+         * Get campaign statistics by campaign id
+         */
+        Route::get('/{campaign_id}/statistics', [\App\Http\Controllers\Api\V1\Campaign\Statistics\GetCampaignStatisticsByCampaignIdController::class, '__invoke']);
+
+        /**
+         * Get campaign statistics
+         */
+        Route::get('/statistics', [\App\Http\Controllers\Api\V1\Campaign\Statistics\GetCampaignStatisticsController::class, '__invoke']);
+    });
+
+    Route::prefix('uploads')->group(function () {
+        /**
+         * Upload a file
+         */
+        Route::post('/', [\App\Http\Controllers\Api\V1\PostFileController::class, '__invoke']);
+    });
+
+    Route::prefix('api-usage')->group(function () {
+        /**
+         * Get API usage
+         */
+        Route::get('/', [\App\Http\Controllers\Api\V1\GetAPIUsageController::class, '__invoke']);
+    });
 });
 

@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-
-use App\Observers\MessageCreatedObserver;
+use App\Observers\MessageDeliveryObserver;
+use App\Observers\MessageObserver;
 use App\ValueObjects\Delivery;
 use App\ValueObjects\Edited;
 use App\ValueObjects\Media;
@@ -22,7 +22,7 @@ use MongoDB\Laravel\Eloquent\Model;
  * This model represents a message reference in the system
  * with whatsapp integration.
  */
-#[ObservedBy([MessageCreatedObserver::class])]
+#[ObservedBy([MessageObserver::class, MessageDeliveryObserver::class])]
 class Message extends Model
 {
     use HasFactory, SoftDeletes;
@@ -62,7 +62,8 @@ class Message extends Model
         'internal_read_at',
         'reactions',
         'edited',
-        'raw_payload'
+        'raw_payload',
+        'metadata'
     ];
 
     /**

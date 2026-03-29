@@ -10,6 +10,23 @@ use InvalidArgumentException;
 class QueryFilterService
 {
     /**
+     * @var array<string, string> Field casting rules
+     */
+    protected array $fieldCasts = [];
+
+    /**
+     * Set field casting rules for the filters.
+     * 
+     * @param array<string, string> $casts
+     * @return self
+     */
+    public function withCasts(array $casts): self
+    {
+        $this->fieldCasts = $casts;
+        return $this;
+    }
+
+    /**
      * Apply filters to an Eloquent query builder.
      *
      * @param Builder $query The Eloquent query builder
@@ -41,6 +58,14 @@ class QueryFilterService
         $field = $filter->getField();
         $operator = $filter->getOperator();
         $value = $filter->getValue();
+
+        if (isset($this->fieldCasts[$field]) && $this->fieldCasts[$field] === 'object_id' && $value !== null) {
+            if (is_array($value)) {
+                $value = array_map(fn($id) => $id instanceof \MongoDB\BSON\ObjectId ? $id : new \MongoDB\BSON\ObjectId($id), $value);
+            } else {
+                $value = $value instanceof \MongoDB\BSON\ObjectId ? $value : new \MongoDB\BSON\ObjectId($value);
+            }
+        }
 
         match ($operator) {
             Filter::OPERATOR_EQUAL => $query->where($field, '=', $value),
