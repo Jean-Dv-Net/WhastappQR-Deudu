@@ -9,6 +9,11 @@ use MongoDB\BSON\ObjectId;
 use MongoDB\Laravel\Eloquent\Model;
 use MongoDB\Laravel\Relations\BelongsTo;
 
+/**
+ * Campaign record model.
+ *
+ * This model represents a campaign record in the system.
+ */
 #[ObservedBy([CampaignRecordObserver::class])]
 class CampaignRecord extends Model
 {
