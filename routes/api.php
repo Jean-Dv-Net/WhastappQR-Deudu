@@ -179,5 +179,12 @@ Route::prefix('v1')->group(function () {
          */
         Route::post('/', [\App\Http\Controllers\Api\V1\PostFileController::class, '__invoke']);
     });
+
+    Route::prefix('api-usage')->group(function () {
+        /**
+         * Get API usage
+         */
+        Route::get('/', [\App\Http\Controllers\Api\V1\GetAPIUsageController::class, '__invoke']);
+    });
 });
 
