@@ -32,7 +32,7 @@ class Campaign extends Model
     /**
      * @var string The primary key of the model.
      */
-    protected $primaryKey = '_id';
+    protected $primaryKey = 'id';
 
     /**
      * @var string[] $fillable The attributes that are mass assignable.
@@ -70,8 +70,8 @@ class Campaign extends Model
      */
     public function getAttribute($key)
     {
-        if ($key === '_id' && isset($this->attributes['_id'])) {
-            return new ObjectId($this->attributes['_id']);
+        if ($key === 'id' && isset($this->attributes['id'])) {
+            return new ObjectId($this->attributes['id']);
         }
 
         return parent::getAttribute($key);
@@ -94,6 +94,6 @@ class Campaign extends Model
      */
     public function records(): HasMany
     {
-        return $this->hasMany(CampaignRecord::class, 'campaign_id', '_id');
+        return $this->hasMany(CampaignRecord::class, 'campaign_id', 'id');
     }
 }
