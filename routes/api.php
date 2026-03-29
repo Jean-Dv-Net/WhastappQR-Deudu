@@ -149,6 +149,13 @@ Route::prefix('v1')->group(function () {
          * Create a campaign
          */
         Route::post('/', [\App\Http\Controllers\Api\V1\Campaign\PostCampaignController::class, '__invoke']);
+
+        Route::prefix('records')->group(function () {
+            /**
+             * Update a campaign record
+             */
+            Route::put('/{record}', [\App\Http\Controllers\Api\V1\Campaign\Record\PutCampaignRecordController::class, '__invoke']);
+        });
     });
 
     Route::prefix('uploads')->group(function () {

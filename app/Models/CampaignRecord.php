@@ -31,7 +31,9 @@ class CampaignRecord extends Model
         'campaign_id',
         'phone_number',
         'identification',
-        'debtor_id'
+        'debtor_id',
+        'message',
+        'attachment_url'
     ];
 
     /**
