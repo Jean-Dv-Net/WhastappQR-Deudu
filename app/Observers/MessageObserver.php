@@ -15,11 +15,11 @@ use Illuminate\Support\Facades\Log;
  *
  * @package App\Observers
  */
-class MessageCreatedObserver
+class MessageObserver
 {
     public function created(Message $message): void
     {
-        Log::debug('[MessageCreatedObserver] Processing new message', [
+        Log::debug('[MessageObserver] Processing new message', [
             'message_id' => $message->getId(),
             'direction' => $message->getDirection(),
             'debtor_id' => $message->getDebtorId(),
