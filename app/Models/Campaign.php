@@ -19,6 +19,11 @@ class Campaign extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const string STATUS_BUILDING = 'building';
+    public const string STATUS_SENDING = 'sending';
+    public const string STATUS_DONE = 'done';
+    public const string STATUS_FAILED = 'failed';
+
     /**
      * @var string $collection The MongoDB collection associated with the model.
      */
@@ -43,6 +48,7 @@ class Campaign extends Model
         'has_attachment',
         'template_type',
         'template',
+        'status'
     ];
 
     /**
@@ -54,6 +60,7 @@ class Campaign extends Model
         'has_attachment' => 'boolean',
         'template_type' => 'string',
         'template' => 'string',
+        'status' => 'string',
     ];
 
     /**

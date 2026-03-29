@@ -22,6 +22,7 @@ class PostCampaignController extends Controller
 
         foreach ($request->records as $record) {
             $campaign->records()->create([
+                'status' => CampaignRecord::STATUS_PENDING,
                 'phone_number' => $record['phone_number'],
                 'identification' => $record['identification'],
                 'debtor_id' => $record['debtor_id'],

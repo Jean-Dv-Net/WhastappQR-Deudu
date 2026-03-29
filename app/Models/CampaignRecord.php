@@ -9,6 +9,13 @@ use MongoDB\Laravel\Relations\BelongsTo;
 
 class CampaignRecord extends Model
 {
+    public const string STATUS_PENDING = 'pending';
+    public const string STATUS_READY = 'ready'; // This status is used when the record is ready to be sent
+    public const string STATUS_SENT = 'sent';
+    public const string STATUS_DELIVERED = 'delivered';
+    public const string STATUS_READ = 'read';
+    public const string STATUS_FAILED = 'failed';
+
     /**
      * @var string $collection The MongoDB collection associated with the model.
      */
@@ -33,7 +40,8 @@ class CampaignRecord extends Model
         'identification',
         'debtor_id',
         'message',
-        'attachment_url'
+        'attachment_url',
+        'status'
     ];
 
     /**
