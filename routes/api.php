@@ -150,5 +150,12 @@ Route::prefix('v1')->group(function () {
          */
         Route::post('/', [\App\Http\Controllers\Api\V1\Campaign\PostCampaignController::class, '__invoke']);
     });
+
+    Route::prefix('uploads')->group(function () {
+        /**
+         * Upload a file
+         */
+        Route::post('/', [\App\Http\Controllers\Api\V1\PostFileController::class, '__invoke']);
+    });
 });
 
