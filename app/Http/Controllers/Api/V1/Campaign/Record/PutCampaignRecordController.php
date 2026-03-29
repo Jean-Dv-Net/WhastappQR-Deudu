@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Campaign\Record;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Campaign\Record\UpdateCampaignRecordRequest;
+use App\Models\Campaign;
 use App\Models\CampaignRecord;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,6 +17,13 @@ class PutCampaignRecordController extends Controller
             ...$request->validated(),
             'status' => CampaignRecord::STATUS_READY,
         ]);
+
+        if ($record->campaign->isReady()) {
+            // TODO: Dispatch job to send campaign
+            $record->campaign->update([
+                'status' => Campaign::STATUS_SENDING,
+            ]);
+        }
 
         return response()->json([
             'success' => true,

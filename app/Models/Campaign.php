@@ -85,6 +85,16 @@ class Campaign extends Model
     }
 
     /**
+     * Check if the campaign is ready to be sent.
+     */
+    public function isReady(): bool
+    {
+        return !$this->records()
+            ->where('status', '!=', CampaignRecord::STATUS_READY)
+            ->exists();
+    }
+
+    /**
      * Get the channel associated with the campaign.
      *
      * @return BelongsTo
