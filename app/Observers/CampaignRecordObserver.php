@@ -2,8 +2,10 @@
 
 namespace App\Observers;
 
+use App\Jobs\SendCampaignMessagesJob;
 use App\Models\Campaign;
 use App\Models\CampaignRecord;
+use App\Models\CampaignStatistic;
 
 class CampaignRecordObserver
 {
@@ -21,10 +23,25 @@ class CampaignRecordObserver
         $campaign = $campaignRecord->campaign;
 
         if ($campaign->isReady()) {
-            // TODO: Dispatch job to send campaign
             $campaign->update([
                 'status' => Campaign::STATUS_SENDING,
             ]);
+
+            // Initialize campaign statistics
+            $totalRecords = $campaign->records()->count();
+            CampaignStatistic::updateOrCreate(
+                ['campaign_id' => $campaign->id],
+                [
+                    'pending'   => $totalRecords,
+                    'sent'      => 0,
+                    'delivered'  => 0,
+                    'read'      => 0,
+                    'failed'    => 0,
+                ]
+            );
+
+            // Dispatch job to send campaign messages
+            SendCampaignMessagesJob::dispatch($campaign);
         }
     }
 }

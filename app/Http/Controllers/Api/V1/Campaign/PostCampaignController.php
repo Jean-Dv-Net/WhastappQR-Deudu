@@ -18,6 +18,7 @@ class PostCampaignController extends Controller
             'has_attachment' => $request->has_attachment,
             'template_type' => $request->template_type,
             'template' => $request->template,
+            'status' => Campaign::STATUS_BUILDING,
         ]);
 
         foreach ($request->records as $record) {
