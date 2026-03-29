@@ -18,13 +18,6 @@ class PutCampaignRecordController extends Controller
             'status' => CampaignRecord::STATUS_READY,
         ]);
 
-        if ($record->campaign->isReady()) {
-            // TODO: Dispatch job to send campaign
-            $record->campaign->update([
-                'status' => Campaign::STATUS_SENDING,
-            ]);
-        }
-
         return response()->json([
             'success' => true,
             'message' => 'Registro actualizado correctamente.',

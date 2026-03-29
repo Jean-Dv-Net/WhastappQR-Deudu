@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use App\Casts\AsObjectId;
+use App\Observers\CampaignRecordObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use MongoDB\BSON\ObjectId;
 use MongoDB\Laravel\Eloquent\Model;
 use MongoDB\Laravel\Relations\BelongsTo;
 
+#[ObservedBy([CampaignRecordObserver::class])]
 class CampaignRecord extends Model
 {
     public const string STATUS_PENDING = 'pending';

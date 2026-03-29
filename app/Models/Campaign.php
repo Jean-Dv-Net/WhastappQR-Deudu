@@ -89,9 +89,9 @@ class Campaign extends Model
      */
     public function isReady(): bool
     {
-        return !$this->records()
+        return $this->records()
             ->where('status', '!=', CampaignRecord::STATUS_READY)
-            ->exists();
+            ->doesntExist();
     }
 
     /**
