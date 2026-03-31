@@ -144,6 +144,19 @@ class FilterableRequest extends FormRequest
         return $filter[0]->getValue();
     }
 
+    public function remove(string $field): void
+    {
+        $filters = $this->getFilters()->all();
+
+        $filtered = array_filter($filters, function ($filter) use ($field) {
+            return $filter->getField() !== $field;
+        });
+
+        $filtered = array_values($filtered);
+
+        $this->filterCollection = new FilterCollection($filtered);
+    }
+
     /**
      * Get custom attributes for validator errors.
      */

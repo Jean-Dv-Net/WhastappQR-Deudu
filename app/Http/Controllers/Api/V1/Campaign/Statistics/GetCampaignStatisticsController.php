@@ -30,7 +30,14 @@ class GetCampaignStatisticsController extends Controller
             $campaignIds = Campaign::whereIn('channel_id', $channelIds)
                 ->pluck('id')
                 ->map(fn($id) => new ObjectId($id));
-            $statistics = CampaignStatistic::whereIn('campaign_id', $campaignIds)->get();
+            /** @var \Illuminate\Database\Eloquent\Builder|\MongoDB\Laravel\Eloquent\Builder $statistics */
+            $statistics = CampaignStatistic::whereIn('campaign_id', $campaignIds);
+
+            $request->remove('coordination_id');
+            $filters = $request->getFilters();
+
+            $statistics = $filterService
+                ->apply($statistics, $filters);
             
             $sent = $statistics->sum('sent');
             $delivered = $statistics->sum('delivered');
