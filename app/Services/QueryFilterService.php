@@ -6,6 +6,7 @@ use App\ValueObjects\Filter;
 use App\ValueObjects\FilterCollection;
 use Illuminate\Database\Eloquent\Builder;
 use InvalidArgumentException;
+use MongoDB\Laravel\Eloquent\Builder as EloquentBuilder;
 
 class QueryFilterService
 {
@@ -29,11 +30,11 @@ class QueryFilterService
     /**
      * Apply filters to an Eloquent query builder.
      *
-     * @param Builder $query The Eloquent query builder
+     * @param Builder|EloquentBuilder $query The Eloquent query builder
      * @param FilterCollection $filters The collection of filters to apply
-     * @return Builder The modified query builder
+     * @return Builder|EloquentBuilder The modified query builder
      */
-    public function apply(Builder $query, FilterCollection $filters): Builder
+    public function apply(Builder|EloquentBuilder $query, FilterCollection $filters): Builder|EloquentBuilder
     {
         if ($filters->isEmpty()) {
             return $query;
