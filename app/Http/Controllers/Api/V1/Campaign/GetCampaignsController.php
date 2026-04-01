@@ -7,6 +7,7 @@ use App\Http\Requests\Campaign\GetCampaignsRequest;
 use App\Http\Requests\PaginationRequest;
 use App\Models\Campaign;
 use App\Models\Channel;
+use App\Models\User;
 use App\Services\QueryFilterService;
 use MongoDB\BSON\ObjectId;
 
@@ -23,28 +24,46 @@ class GetCampaignsController extends Controller
         $coordinationId = $request->getValueByField('coordination_id');
 
         if (!empty($coordinationId)) {
-            $coordinationId = (int) $coordinationId;
-            
-            $channelIds = Channel::where('coordination_id', $coordinationId)
+            $coordinationIds = (array) $request->getValueByField('coordination_id');
+
+            // Obtain channels grouped by coordination_id
+            $channelsGrouped = Channel::whereIn('coordination_id', $coordinationIds)
+                ->get(['id', 'coordination_id'])
+                ->groupBy('coordination_id');
+
+            // Obtain all channels ids
+            $channelIds = $channelsGrouped
+                ->flatten()
                 ->pluck('id')
                 ->map(fn($id) => new ObjectId($id));
+            
+            // Coordinations for the name (a single query)
+            $coordinations = User::whereIn('id', $coordinationIds)
+                ->get(['id', 'name'])
+                ->keyBy('id');
 
-            /** @var \Illuminate\Database\Eloquent\Builder|\MongoDB\Laravel\Eloquent\Builder $campaignsQuery */
-            $campaignsQuery = Campaign::whereIn('channel_id', $channelIds);
+            // Query base
+            $campaignsQuery = Campaign::whereIn('channel_id', $channelIds)->with('statistics');
 
             $request->remove('coordination_id');
             $filters = $request->getFilters();
 
-            $campaigns = $filterService
-                ->apply($campaignsQuery, $filters);
-            
-            $campaigns = $campaigns
-                ->paginate($perPage, ['*'], 'page', $pagination->getPage())
-                ->withQueryString();
+            $campaigns = $filterService->apply($campaignsQuery, $filters)->get();
+
+            // 🔥 Agrupar campañas por coordination_id
+            $result = $channelsGrouped->map(function ($channels, $coordinationId) use ($campaigns, $coordinations) {
+                $channelIds = $channels->pluck('id')->map(fn($id) => new ObjectId($id));
+
+                return [
+                    'coordination_id' => $coordinationId,
+                    'administration' => $coordinations->get($coordinationId)?->name ?? 'N/A',
+                    'campaigns' => $campaigns->whereIn('channel_id', $channelIds)->values()
+                ];
+            })->values();
 
             return response()->json([
                 'success' => true,
-                'data' => $campaigns
+                'data' => $result
             ]);
         }
 

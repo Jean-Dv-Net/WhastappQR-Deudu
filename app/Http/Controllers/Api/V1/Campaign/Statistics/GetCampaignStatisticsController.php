@@ -76,7 +76,7 @@ class GetCampaignStatisticsController extends Controller
             $coordinationsData = collect($coordinationIds)->map(function ($coordinationId) use (
                 $coordinations, $campaignsGrouped, $statsGrouped, &$totals
             ) {
-                $coordinationCampaigns = $campaignsGrouped->get((string) $coordinationId, collect());
+                $coordinationCampaigns = $campaignsGrouped->get($coordinationId, collect());
                 $campaignIds = $coordinationCampaigns->pluck('id')->map(fn($id) => (string) $id);
 
                 // Sum statistics of the campaigns of this coordination
