@@ -116,7 +116,12 @@ return [
         'mongodb' => [
             'driver' => 'mongodb',
             'dsn' => env('MONGODB_URI', 'mongodb://localhost:27017'),
-            'database' => env('MONGODB_DATABASE', 'laravel_app')
+            'database' => env('MONGODB_DATABASE', 'laravel_app'),
+            'options' => [
+                'socketTimeoutMS'        => 30000,
+                'connectTimeoutMS'       => 10000,
+                'serverSelectionTimeoutMS' => 5000,
+            ],
         ],
 
         'mysql-aquila' => [
