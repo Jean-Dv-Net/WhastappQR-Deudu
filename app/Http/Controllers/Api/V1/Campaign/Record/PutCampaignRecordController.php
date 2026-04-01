@@ -22,6 +22,8 @@ class PutCampaignRecordController extends Controller
             $record->update([
                 'message' => $request->get('message'),
                 'attachment_url' => $request->get('attachment_url'),
+                'status' => CampaignRecord::STATUS_READY,
+                'observation' => null
             ]);
         }
 
