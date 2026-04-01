@@ -63,7 +63,7 @@ class GetCampaignsController extends Controller
                 ];
             })->values();
 
-            if (count($coordinationIds) === 1) {
+            if (count($coordinationIds) === 1 && count($result) === 1) {
                 return response()->json([
                     'success' => true,
                     'data' => $result[0]
