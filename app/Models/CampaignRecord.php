@@ -5,9 +5,10 @@ namespace App\Models;
 use App\Casts\AsObjectId;
 use App\Observers\CampaignRecordObserver;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use MongoDB\BSON\ObjectId;
 use MongoDB\Laravel\Eloquent\Model;
-use MongoDB\Laravel\Relations\BelongsTo;
+use MongoDB\Laravel\Relations\BelongsTo as MongoBelongsTo;
 
 /**
  * Campaign record model.
@@ -49,7 +50,8 @@ class CampaignRecord extends Model
         'debtor_id',
         'message',
         'attachment_url',
-        'status'
+        'status',
+        'observation'
     ];
 
     /**
@@ -86,10 +88,15 @@ class CampaignRecord extends Model
     /**
      * Get the campaign associated with the campaign record.
      *
-     * @return BelongsTo
+     * @return MongoBelongsTo
      */
-    public function campaign(): BelongsTo
+    public function campaign(): MongoBelongsTo
     {
         return $this->belongsTo(Campaign::class, 'campaign_id', 'id');
+    }
+
+    public function debtor(): BelongsTo
+    {
+        return $this->belongsTo(Debtor::class, 'debtor_id', 'id');
     }
 }
