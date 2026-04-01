@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\CampaignRecord;
 use App\Models\CampaignStatistic;
 use App\Models\Message;
+use App\StateMachines\CampaignRecordStateMachine;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -33,77 +34,32 @@ class MessageDeliveryObserver
      */
     public function updated(Message $message): void
     {
-        Log::info('MessageDeliveryObserver: Message updated', [
-            'message_uuid' => $message->getMessageUuid(),
-            'delivery' => $message->delivery,
-            'message' => $message,
-        ]);
-        // Only process messages that belong to a campaign record
-        $metadata = Message::find($message->getId())->metadata;
+        // Only process messages linked to a campaign record
+        $messageInfo = Message::find($message->getId());
+        $metadata = $messageInfo->metadata;
+        $type = $messageInfo->type;
         $campaignRecordId = $metadata['campaign_record'] ?? null;
+
         if (!$campaignRecordId) {
-            Log::info('MessageDeliveryObserver: Campaign record not found', [
-                'message_uuid' => $message->getMessageUuid(),
-                'metadata' => $metadata,
-            ]);
             return;
         }
 
-        Log::info('MessageDeliveryObserver: Campaign record found', [
-            'campaign_record_id' => $campaignRecordId,
-        ]);
-
-        // We only care about changes to the delivery object
+        // Only care about changes to the delivery field
         if (!$message->wasChanged('delivery')) {
             return;
         }
 
-        Log::info('MessageDeliveryObserver: Delivery changed', [
-            'message_uuid' => $message->getMessageUuid(),
-            'delivery' => $message->delivery,
-        ]);
-
-        $originalDelivery = $message->getOriginal('delivery');
-        $currentDelivery = $message->getDelivery();
-
-        Log::info('MessageDeliveryObserver: Original delivery', [
-            'original_delivery' => $originalDelivery,
-        ]);
-        Log::info('MessageDeliveryObserver: Current delivery', [
-            'current_delivery' => $currentDelivery,
-        ]);
-
-        // Extract original timestamps (handling array/object gracefully, since it's casted)
-        $originalDeliveredAt = is_array($originalDelivery) ? ($originalDelivery['delivered_at'] ?? null) : null;
-        if ($originalDelivery instanceof \App\ValueObjects\Delivery) {
-             $originalDeliveredAt = $originalDelivery->deliveredAt();
-        } elseif (isset($originalDelivery['delivery']['delivered_at'])) {
-             $originalDeliveredAt = $originalDelivery['delivery']['delivered_at'];
+        // TODO: Warning we check here if the type is document, if it is, we don't increment the statistics
+        if ($type === "document") {
+            return;
         }
 
-        $originalReadAt = is_array($originalDelivery) ? ($originalDelivery['read_at'] ?? null) : null;
-        if ($originalDelivery instanceof \App\ValueObjects\Delivery) {
-             $originalReadAt = $originalDelivery->readAt();
-        } elseif (isset($originalDelivery['delivery']['read_at'])) {
-             $originalReadAt = $originalDelivery['delivery']['read_at'];
-        }
+        // Detect state transitions
+        $originalDelivery = $this->extractOriginalDelivery($message->getOriginal('delivery'));
+        $currentDelivery  = $message->getDelivery();
 
-        Log::info('MessageDeliveryObserver: Original timestamps', [
-            'original_delivered_at' => $originalDeliveredAt,
-            'original_read_at' => $originalReadAt,
-        ]);
-
-        $nowDeliveredAt = $currentDelivery->deliveredAt();
-        $nowReadAt = $currentDelivery->readAt();
-
-        Log::info('MessageDeliveryObserver: Current timestamps', [
-            'now_delivered_at' => $nowDeliveredAt,
-            'now_read_at' => $nowReadAt,
-        ]);
-
-        // Detect transitions
-        $becameDelivered = $originalDeliveredAt === null && $nowDeliveredAt !== null;
-        $becameRead = $originalReadAt === null && $nowReadAt !== null;
+        $becameDelivered = $originalDelivery['delivered_at'] === null && $currentDelivery->deliveredAt() !== null;
+        $becameRead      = $originalDelivery['read_at'] === null && $currentDelivery->readAt() !== null;
 
         if (!$becameDelivered && !$becameRead) {
             return;
@@ -111,61 +67,93 @@ class MessageDeliveryObserver
 
         $record = CampaignRecord::find($campaignRecordId);
 
-        Log::info('MessageDeliveryObserver: Campaign record', [
-            'record' => $record,
-        ]);
-
         if (!$record) {
-            Log::warning('[MessageDeliveryObserver] Campaign record not found for message', [
-                'message_uuid' => $message->getMessageUuid(),
-                'campaign_record_id' => $campaignRecordId
+            Log::warning('[MessageDeliveryObserver] Campaign record not found', [
+                'message_uuid'       => $message->getMessageUuid(),
+                'campaign_record_id' => $campaignRecordId,
             ]);
             return;
         }
 
         $statistic = CampaignStatistic::where('campaign_id', $record->campaign_id)->first();
-        
-        Log::info('MessageDeliveryObserver: Campaign statistic', [
-            'statistic' => $statistic,
-        ]);
+
         if (!$statistic) {
             Log::warning('[MessageDeliveryObserver] Campaign statistic not found', [
-                'campaign_id' => (string)$record->campaign_id
+                'campaign_id' => (string) $record->campaign_id,
             ]);
             return;
         }
 
-        $currentStatusPriority = self::STATUS_PRIORITY[$record->status] ?? 0;
-
-        Log::info('MessageDeliveryObserver: Current status priority', [
-            'current_status_priority' => $currentStatusPriority,
-        ]);
-
-        // Process Read transition (Highest Priority)
         if ($becameRead) {
-            $newStatusPriority = self::STATUS_PRIORITY[CampaignRecord::STATUS_READ];
-            if ($newStatusPriority > $currentStatusPriority) {
-                $record->update(['status' => CampaignRecord::STATUS_READ]);
-            }
+            $this->handleReadTransition($record, $statistic, $message->getMessageUuid());
+        } elseif ($becameDelivered) {
+            $this->handleDeliveredTransition($record, $statistic, $message->getMessageUuid());
+        }
+    }
+
+    // ----- Handlers -----
+    private function handleReadTransition(
+        CampaignRecord    $record,
+        CampaignStatistic $statistic,
+        string            $messageUuid
+    ): void {
+        $previousStatus = $record->status;
+
+        // Only increment if the record has not already reached "read"
+        $transitioned = CampaignRecordStateMachine::transition($record, CampaignRecord::STATUS_READ);
+
+        if ($transitioned) {
             $statistic->increment('read');
 
-            Log::debug('[MessageDeliveryObserver] Campaign record marked as read', [
-                'campaign_record_id' => (string)$record->id,
-                'message_uuid' => $message->getMessageUuid()
+            // If the record jumped directly from sent → read, also count it as delivered
+            // since the message was read before the delivery confirmation arrived
+            if ($previousStatus === CampaignRecord::STATUS_SENT) {
+                $statistic->increment('delivered');
+            }
+
+            Log::debug('[MessageDeliveryObserver] Record marked as read', [
+                'campaign_record_id' => (string) $record->id,
+                'message_uuid'       => $messageUuid,
+                'previous_status'    => $previousStatus,
             ]);
         }
-        // Process Delivered transition
-        elseif ($becameDelivered) {
-            $newStatusPriority = self::STATUS_PRIORITY[CampaignRecord::STATUS_DELIVERED];
-            if ($newStatusPriority > $currentStatusPriority) {
-                $record->update(['status' => CampaignRecord::STATUS_DELIVERED]);
-            }
+    }
+
+    private function handleDeliveredTransition(
+        CampaignRecord    $record,
+        CampaignStatistic $statistic,
+        string            $messageUuid
+    ): void {
+        // Only increment if the transition is valid (record was not already delivered or read)
+        $transitioned = CampaignRecordStateMachine::transition($record, CampaignRecord::STATUS_DELIVERED);
+
+        if ($transitioned) {
             $statistic->increment('delivered');
 
-            Log::debug('[MessageDeliveryObserver] Campaign record marked as delivered', [
-                'campaign_record_id' => (string)$record->id,
-                'message_uuid' => $message->getMessageUuid()
+            Log::debug('[MessageDeliveryObserver] Record marked as delivered', [
+                'campaign_record_id' => (string) $record->id,
+                'message_uuid'       => $messageUuid,
             ]);
         }
+    }
+
+    // ----- Helpers ---------
+    private function extractOriginalDelivery(mixed $original): array
+    {
+        if ($original instanceof \App\ValueObjects\Delivery) {
+            return [
+                'delivered_at' => $original->deliveredAt(),
+                'read_at'      => $original->readAt(),
+            ];
+        }
+
+        if (is_array($original)) {
+            return [
+                'delivered_at' => $original['delivered_at'] ?? $original['delivery']['delivered_at'] ?? null,
+                'read_at'      => $original['read_at']      ?? $original['delivery']['read_at']      ?? null,
+            ];
+        }
+
+        return ['delivered_at' => null, 'read_at' => null];
     }
 }
