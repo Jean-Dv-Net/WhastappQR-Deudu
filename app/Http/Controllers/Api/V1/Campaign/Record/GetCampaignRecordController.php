@@ -19,7 +19,7 @@ class GetCampaignRecordController extends Controller
         $perPage = $pagination->getPerPage();
         $page = $pagination->getPage();
 
-        $query = CampaignRecord::query();
+        $query = CampaignRecord::query()->with('debtor');
 
         $filters = $request->getFilters();
         $filterService->withCasts([

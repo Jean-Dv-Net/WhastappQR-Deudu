@@ -13,10 +13,17 @@ class PutCampaignRecordController extends Controller
 {
     public function __invoke(UpdateCampaignRecordRequest $request, CampaignRecord $record): JsonResponse
     {
-        $record->update([
-            ...$request->validated(),
-            'status' => CampaignRecord::STATUS_READY,
-        ]);
+        if ($request->has('status')) {
+            $record->update([
+                'status' => $request->get('status'),
+                'observation' => $request->get('observation'),
+            ]);
+        } else {
+            $record->update([
+                'message' => $request->get('message'),
+                'attachment_url' => $request->get('attachment_url'),
+            ]);
+        }
 
         return response()->json([
             'success' => true,
