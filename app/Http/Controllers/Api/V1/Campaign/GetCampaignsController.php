@@ -11,6 +11,8 @@ use App\Models\User;
 use App\Services\QueryFilterService;
 use MongoDB\BSON\ObjectId;
 
+use function count;
+
 class GetCampaignsController extends Controller
 {
     public function __invoke(
@@ -56,10 +58,17 @@ class GetCampaignsController extends Controller
 
                 return [
                     'coordination_id' => $coordinationId,
-                    'administration' => $coordinations->get($coordinationId)?->name ?? 'N/A',
+                    'coordination_name' => $coordinations->get($coordinationId)?->name ?? 'N/A',
                     'campaigns' => $campaigns->whereIn('channel_id', $channelIds)->values()
                 ];
             })->values();
+
+            if (count($coordinationIds) === 1) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $result[0]
+                ]);
+            }
 
             return response()->json([
                 'success' => true,

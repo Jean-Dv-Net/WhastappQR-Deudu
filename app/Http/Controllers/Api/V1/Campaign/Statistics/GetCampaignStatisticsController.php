@@ -97,7 +97,7 @@ class GetCampaignStatisticsController extends Controller
 
                 return [
                     'coordination_id'  => $coordinationId,
-                    'administration'   => $coordinations->get($coordinationId)?->name ?? 'N/A',
+                    'coordination_name'   => $coordinations->get($coordinationId)?->name ?? 'N/A',
                     'campaign_count'   => $coordinationCampaigns->count(),
                     'last_campaign_at' => $coordinationCampaigns->first()?->created_at?->toDateTime(),
                     'pending'          => $pending,
