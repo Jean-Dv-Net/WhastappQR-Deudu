@@ -18,18 +18,6 @@ use Illuminate\Support\Facades\Log;
 class MessageDeliveryObserver
 {
     /**
-     * Priority order for message statuses to prevent downgrading.
-     */
-    private const array STATUS_PRIORITY = [
-        CampaignRecord::STATUS_PENDING => 0,
-        CampaignRecord::STATUS_READY => 1,
-        CampaignRecord::STATUS_SENT => 2,
-        CampaignRecord::STATUS_DELIVERED => 3,
-        CampaignRecord::STATUS_READ => 4,
-        CampaignRecord::STATUS_FAILED => 5,
-    ];
-
-    /**
      * Handle the Message "updated" event.
      */
     public function updated(Message $message): void
@@ -60,6 +48,15 @@ class MessageDeliveryObserver
 
         $becameDelivered = $originalDelivery['delivered_at'] === null && $currentDelivery->deliveredAt() !== null;
         $becameRead      = $originalDelivery['read_at'] === null && $currentDelivery->readAt() !== null;
+
+        Log::info('[MessageDeliveryObserver] Message updated', [
+            'message_uuid'       => $message->getMessageUuid(),
+            'campaign_record_id' => $campaignRecordId,
+            'original_delivery'  => $originalDelivery,
+            'current_delivery'   => $currentDelivery,
+            'becameDelivered'    => $becameDelivered,
+            'becameRead'         => $becameRead,
+        ]);
 
         if (!$becameDelivered && !$becameRead) {
             return;
@@ -93,8 +90,8 @@ class MessageDeliveryObserver
 
     // ----- Handlers -----
     private function handleReadTransition(
-        CampaignRecord    $record,
-        CampaignStatistic $statistic,
+        CampaignRecord    &$record,
+        CampaignStatistic &$statistic,
         string            $messageUuid
     ): void {
         $previousStatus = $record->status;
@@ -120,16 +117,28 @@ class MessageDeliveryObserver
     }
 
     private function handleDeliveredTransition(
-        CampaignRecord    $record,
-        CampaignStatistic $statistic,
+        CampaignRecord    &$record,
+        CampaignStatistic &$statistic,
         string            $messageUuid
     ): void {
         // Only increment if the transition is valid (record was not already delivered or read)
+        Log::debug('[MessageDeliveryObserver] Attempting delivered transition', [
+            'campaign_record_id' => (string) $record->id,
+            'current_status'     => $record->status,
+            'can_transition'     => CampaignRecordStateMachine::canTransition(
+                $record->status,
+                CampaignRecord::STATUS_DELIVERED
+            ),
+        ]);
+
         $transitioned = CampaignRecordStateMachine::transition($record, CampaignRecord::STATUS_DELIVERED);
+
+        Log::debug('[MessageDeliveryObserver] Delivered transition result', [
+            'transitioned' => $transitioned,
+        ]);
 
         if ($transitioned) {
             $statistic->increment('delivered');
-
             Log::debug('[MessageDeliveryObserver] Record marked as delivered', [
                 'campaign_record_id' => (string) $record->id,
                 'message_uuid'       => $messageUuid,

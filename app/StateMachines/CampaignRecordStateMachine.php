@@ -3,6 +3,7 @@
 namespace App\StateMachines;
 
 use App\Models\CampaignRecord;
+use Illuminate\Support\Facades\Log;
 
 use function in_array;
 
@@ -13,9 +14,10 @@ class CampaignRecordStateMachine
 {
     private const array TRANSITIONS = [
         CampaignRecord::STATUS_PENDING   => [CampaignRecord::STATUS_SENT],
+        CampaignRecord::STATUS_READY     => [CampaignRecord::STATUS_SENT, CampaignRecord::STATUS_DELIVERED, CampaignRecord::STATUS_READ],
         CampaignRecord::STATUS_SENT      => [CampaignRecord::STATUS_DELIVERED, CampaignRecord::STATUS_READ],
         CampaignRecord::STATUS_DELIVERED => [CampaignRecord::STATUS_READ],
-        CampaignRecord::STATUS_READ      => [], // terminal state
+        CampaignRecord::STATUS_READ      => [],
     ];
 
     public static function canTransition(string $from, string $to): bool
@@ -27,13 +29,30 @@ class CampaignRecordStateMachine
      * Attempts to apply the transition.
      * Returns true if applied, false if the transition is not allowed.
      */
-    public static function transition(CampaignRecord $record, string $newStatus): bool
+    public static function transition(CampaignRecord &$record, string $newStatus): bool
     {
-        if (!self::canTransition($record->status, $newStatus)) {
+        $canTransition = self::canTransition($record->status, $newStatus);
+
+        Log::debug('[CampaignRecordStateMachine] Transition attempt', [
+            'from'           => $record->status,
+            'to'             => $newStatus,
+            'can_transition' => $canTransition,
+            'transitions'    => self::TRANSITIONS[$record->status] ?? 'status not found in map',
+        ]);
+
+        if (!$canTransition) {
             return false;
         }
 
         $record->update(['status' => $newStatus]);
+
+        // Verify the update actually persisted
+        $fresh = $record->fresh();
+        Log::debug('[CampaignRecordStateMachine] Post-transition status check', [
+            'expected_status' => $newStatus,
+            'actual_status'   => $fresh->status,
+            'match'           => $fresh->status === $newStatus,
+        ]);
         return true;
     }
 }
