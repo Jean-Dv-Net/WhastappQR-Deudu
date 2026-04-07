@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Casts\AsObjectId;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use MongoDB\BSON\ObjectId;
@@ -60,14 +61,13 @@ class Campaign extends Model
         'has_attachment' => 'boolean',
         'template_type' => 'string',
         'template' => 'string',
-        'status' => 'string',
+        'status' => 'string'
     ];
 
     /**
      * @var string[] $hidden The attributes that should be hidden for arrays.
      */
     protected $hidden = [
-        'created_at',
         'updated_at',
         'deleted_at'
     ];
