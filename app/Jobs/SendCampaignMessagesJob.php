@@ -11,6 +11,7 @@ use App\Models\CampaignRecord;
 use App\Models\CampaignStatistic;
 use App\Models\Message;
 use App\Models\SystemConfig;
+use App\StateMachines\CampaignRecordStateMachine;
 use App\ValueObjects\Delivery;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -228,7 +229,10 @@ class SendCampaignMessagesJob implements ShouldQueue
                 }
 
                 // Update record status
-                $record->update(['status' => CampaignRecord::STATUS_SENT]);
+                // Refresh from DB first — the MessageDeliveryObserver may have already
+                // advanced the record to "delivered" or "read" while we were sending.
+                $record = $record->fresh() ?? $record;
+                CampaignRecordStateMachine::transition($record, CampaignRecord::STATUS_SENT);
 
                 $sentCount++;
                 $statistic->increment('sent');
@@ -241,7 +245,7 @@ class SendCampaignMessagesJob implements ShouldQueue
                     'error'            => $e->getMessage(),
                 ]);
 
-                $record->update(['status' => CampaignRecord::STATUS_FAILED]);
+                CampaignRecordStateMachine::transition($record, CampaignRecord::STATUS_FAILED);
 
                 $failedCount++;
                 $statistic->increment('failed');
