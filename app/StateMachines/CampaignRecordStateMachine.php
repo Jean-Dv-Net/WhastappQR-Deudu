@@ -43,16 +43,17 @@ class CampaignRecordStateMachine
         if (!$canTransition) {
             return false;
         }
+        
+        $record->setStatus($newStatus);
+        $record->save();
 
-        $record->update(['status' => $newStatus]);
-
-        // Verify the update actually persisted
-        $fresh = $record->fresh();
-        Log::debug('[CampaignRecordStateMachine] Post-transition status check', [
-            'expected_status' => $newStatus,
-            'actual_status'   => $fresh->status,
-            'match'           => $fresh->status === $newStatus,
+        Log::debug('[CampaignRecordStateMachine] Transition applied', [
+            'from'           => $record->status,
+            'to'             => $newStatus,
+            'can_transition' => $canTransition,
+            'record'         => $record,
         ]);
+        
         return true;
     }
 }

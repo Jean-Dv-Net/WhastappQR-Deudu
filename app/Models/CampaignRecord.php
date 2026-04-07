@@ -99,4 +99,9 @@ class CampaignRecord extends Model
     {
         return $this->belongsTo(Debtor::class, 'debtor_id', 'id');
     }
+
+    public function setStatus(string $status): void
+    {
+        $this->status = $status;
+    }
 }

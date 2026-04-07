@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Events\CampaignDone;
+use App\Events\CampaignFailed;
 use App\Libraries\Whatsapp\Client;
 use App\Libraries\Whatsapp\Messages\TextMessage;
 use App\Models\Campaign;
@@ -9,6 +11,7 @@ use App\Models\CampaignRecord;
 use App\Models\CampaignStatistic;
 use App\Models\Message;
 use App\Models\SystemConfig;
+use App\StateMachines\CampaignRecordStateMachine;
 use App\ValueObjects\Delivery;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -56,6 +59,7 @@ class SendCampaignMessagesJob implements ShouldQueue
 
         $rules = SystemConfig::getByKey('campaign-messaging-rules');
 
+        // @var \App\Models\Channel $channel
         $channel = $campaign->channel;
 
         if (!$channel) {
@@ -63,6 +67,10 @@ class SendCampaignMessagesJob implements ShouldQueue
                 'campaign_id' => $this->campaignId,
             ]);
             $campaign->update(['status' => Campaign::STATUS_FAILED]);
+            broadcast(new CampaignFailed(
+                campaignId: (string) $campaign->id,
+                coordinationId: (string) $channel->coordination_id
+            ));
             return;
         }
 
@@ -79,6 +87,10 @@ class SendCampaignMessagesJob implements ShouldQueue
                 'campaign_id' => $this->campaignId,
             ]);
             $campaign->update(['status' => Campaign::STATUS_DONE]);
+            broadcast(new CampaignDone(
+                campaignId: (string) $campaign->id,
+                coordinationId: (string) $channel->coordination_id
+            ));
             return;
         }
 
@@ -128,6 +140,10 @@ class SendCampaignMessagesJob implements ShouldQueue
                         'error_rate'  => $errorRate,
                     ]);
                     $campaign->update(['status' => Campaign::STATUS_FAILED]);
+                    broadcast(new CampaignFailed(
+                        campaignId: (string) $campaign->id,
+                        coordinationId: (string) $channel->coordination_id
+                    ));
                     return;
                 }
             }
@@ -213,7 +229,10 @@ class SendCampaignMessagesJob implements ShouldQueue
                 }
 
                 // Update record status
-                $record->update(['status' => CampaignRecord::STATUS_SENT]);
+                // Refresh from DB first — the MessageDeliveryObserver may have already
+                // advanced the record to "delivered" or "read" while we were sending.
+                $record = $record->fresh() ?? $record;
+                CampaignRecordStateMachine::transition($record, CampaignRecord::STATUS_SENT);
 
                 $sentCount++;
                 $statistic->increment('sent');
@@ -226,7 +245,7 @@ class SendCampaignMessagesJob implements ShouldQueue
                     'error'            => $e->getMessage(),
                 ]);
 
-                $record->update(['status' => CampaignRecord::STATUS_FAILED]);
+                CampaignRecordStateMachine::transition($record, CampaignRecord::STATUS_FAILED);
 
                 $failedCount++;
                 $statistic->increment('failed');
@@ -240,12 +259,21 @@ class SendCampaignMessagesJob implements ShouldQueue
         // Determine final campaign status
         if ($failedCount === $records->count()) {
             $campaign->update(['status' => Campaign::STATUS_FAILED]);
+            broadcast(new CampaignFailed(
+                campaignId: (string) $campaign->id,
+                coordinationId: (string) $channel->coordination_id
+            ));
         } else {
             $campaign->update(['status' => Campaign::STATUS_DONE]);
+            broadcast(new CampaignDone(
+                campaignId: (string) $campaign->id,
+                coordinationId: (string) $channel->coordination_id
+            ));
         }
 
-        Log::info('SendCampaignMessagesJob: Envío de campaña finalizado.', [
+        Log::info('SendCampaignMessagesJob: Envío de campaña finalizado. xd', [
             'campaign_id' => $this->campaignId,
+            'coordination_id' => $channel->coordination_id,
             'sent'        => $sentCount,
             'failed'      => $failedCount,
         ]);

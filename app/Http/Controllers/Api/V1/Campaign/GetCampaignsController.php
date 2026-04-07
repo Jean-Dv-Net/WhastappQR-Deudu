@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\V1\Campaign;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Campaign\GetCampaignsRequest;
 use App\Http\Requests\PaginationRequest;
+use App\Http\Resources\Campaign\CampaignResource;
+use App\Http\Resources\Campaign\CoordinationCampaignResource;
 use App\Models\Campaign;
 use App\Models\Channel;
 use App\Models\User;
@@ -52,7 +54,7 @@ class GetCampaignsController extends Controller
 
             $campaigns = $filterService->apply($campaignsQuery, $filters)->get();
 
-            // 🔥 Agrupar campañas por coordination_id
+            // Group campaigns by coordination_id
             $result = $channelsGrouped->map(function ($channels, $coordinationId) use ($campaigns, $coordinations) {
                 $channelIds = $channels->pluck('id')->map(fn($id) => new ObjectId($id));
 
@@ -66,13 +68,13 @@ class GetCampaignsController extends Controller
             if (count($coordinationIds) === 1 && count($result) === 1) {
                 return response()->json([
                     'success' => true,
-                    'data' => $result[0]
+                    'data' => new CoordinationCampaignResource($result[0])
                 ]);
             }
 
             return response()->json([
                 'success' => true,
-                'data' => $result
+                'data' => CoordinationCampaignResource::collection($result)
             ]);
         }
 

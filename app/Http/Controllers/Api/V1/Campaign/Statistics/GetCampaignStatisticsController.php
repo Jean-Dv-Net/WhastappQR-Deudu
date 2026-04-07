@@ -26,6 +26,9 @@ class GetCampaignStatisticsController extends Controller
             $request->remove('coordination_id');
             $filters = $request->getFilters();
 
+            // Extract date filters
+            $dateFilters = (array) $request->getValueByField('created_at');
+
             //  1. Channels group by coordination id
             $channelsGrouped = Channel::whereIn('coordination_id', $coordinationIds)
                 ->get(['id', 'coordination_id'])
@@ -34,22 +37,40 @@ class GetCampaignStatisticsController extends Controller
             $allChannelIds = $channelsGrouped
                 ->flatten()
                 ->pluck('id')
-                ->map(fn($id) => new ObjectId($id));
+                ->map(fn($id) => new ObjectId($id))
+                ->values()
+                ->toArray();
 
             // 2. Campaigns with their count and last date (a single query)
+            /** @var \Illuminate\Database\Eloquent\Builder|\MongoDB\Laravel\Eloquent\Builder $campaigns */
             $campaigns = Campaign::whereIn('channel_id', $allChannelIds)
-                ->orderByDesc('created_at')
-                ->get(['id', 'channel_id', 'created_at']);
-
+                ->orderByDesc('created_at');
             
+            if ($dateFilters) {
+                $campaigns = $filterService
+                    ->withCasts([
+                        'created_at' => 'datetime'
+                    ])
+                    ->apply($campaigns, $filters);
+            }
+            
+            $campaigns = $campaigns->get(['id', 'channel_id', 'created_at']);
+
             $allCampaignObjectIds = $campaigns
                 ->pluck('id')
-                ->map(fn($id) => new ObjectId($id));
+                ->map(fn($id) => new ObjectId($id))
+                ->values()
+                ->toArray();
 
             // 3. Filtered statistics (a single query)
             /** @var \Illuminate\Database\Eloquent\Builder|\MongoDB\Laravel\Eloquent\Builder $statisticsQuery */
             $statisticsQuery = CampaignStatistic::whereIn('campaign_id', $allCampaignObjectIds);
-            $statistics = $filterService->apply($statisticsQuery, $filters)->get();
+            $statistics = $filterService
+                ->withCasts([
+                    'created_at' => 'datetime'
+                ])
+                ->apply($statisticsQuery, $filters)
+                ->get();
 
             // 4. Coordinations for the name (a single query)
             $coordinations = User::whereIn('id', $coordinationIds)
@@ -128,7 +149,8 @@ class GetCampaignStatisticsController extends Controller
         $query = CampaignStatistic::query();
 
         $filterService->withCasts([
-            'campaign_id' => 'object_id'
+            'campaign_id' => 'object_id',
+            'created_at' => 'datetime'
         ])->apply($query, $filters);
 
         return response()->json([
