@@ -13,7 +13,8 @@ class GetCampaignStatisticsRequest extends FilterableRequest
      */
     protected array $filterableFields = [
         'id',
-        'coordination_id'
+        'coordination_id',
+        'created_at'
     ];
 
     /**

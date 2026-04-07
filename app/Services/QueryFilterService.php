@@ -4,9 +4,13 @@ namespace App\Services;
 
 use App\ValueObjects\Filter;
 use App\ValueObjects\FilterCollection;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use InvalidArgumentException;
+use MongoDB\BSON\UTCDateTime;
 use MongoDB\Laravel\Eloquent\Builder as EloquentBuilder;
+
+use function is_array;
 
 class QueryFilterService
 {
@@ -65,6 +69,26 @@ class QueryFilterService
                 $value = array_map(fn($id) => $id instanceof \MongoDB\BSON\ObjectId ? $id : new \MongoDB\BSON\ObjectId($id), $value);
             } else {
                 $value = $value instanceof \MongoDB\BSON\ObjectId ? $value : new \MongoDB\BSON\ObjectId($value);
+            }
+        }
+
+        // Cast datetime
+        if (isset($this->fieldCasts[$field]) && $this->fieldCasts[$field] === 'datetime' && $value !== null) {
+            if (is_array($value)) {
+                $value = array_map(
+                    fn($v) => new UTCDateTime(
+                        Carbon::parse($v, config('app.timezone'))
+                            ->utc()
+                            ->getTimestampMs()
+                    ),
+                    $value
+                );
+            } else {
+                $value = new UTCDateTime(
+                    Carbon::parse($value, config('app.timezone'))
+                        ->utc()
+                        ->getTimestampMs()
+                );
             }
         }
 

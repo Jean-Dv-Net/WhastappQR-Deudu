@@ -54,7 +54,7 @@ class GetCampaignsController extends Controller
 
             $campaigns = $filterService->apply($campaignsQuery, $filters)->get();
 
-            // 🔥 Agrupar campañas por coordination_id
+            // Group campaigns by coordination_id
             $result = $channelsGrouped->map(function ($channels, $coordinationId) use ($campaigns, $coordinations) {
                 $channelIds = $channels->pluck('id')->map(fn($id) => new ObjectId($id));
 
