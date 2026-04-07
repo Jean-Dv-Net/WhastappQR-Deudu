@@ -102,10 +102,15 @@ class MessageDeliveryObserver
         if ($transitioned) {
             $statistic->increment('read');
 
+            // Decrement the previous status counter
             // If the record jumped directly from sent → read, also count it as delivered
-            // since the message was read before the delivery confirmation arrived
-            if ($previousStatus === CampaignRecord::STATUS_SENT) {
-                $statistic->increment('delivered');
+            switch ($previousStatus) {
+                case CampaignRecord::STATUS_READY:
+                    $statistic->decrement('sent');
+                    break;
+                default:
+                    $statistic->decrement($previousStatus);
+                    break;
             }
 
             Log::debug('[MessageDeliveryObserver] Record marked as read', [
@@ -121,15 +126,7 @@ class MessageDeliveryObserver
         CampaignStatistic &$statistic,
         string            $messageUuid
     ): void {
-        // Only increment if the transition is valid (record was not already delivered or read)
-        Log::debug('[MessageDeliveryObserver] Attempting delivered transition', [
-            'campaign_record_id' => (string) $record->id,
-            'current_status'     => $record->status,
-            'can_transition'     => CampaignRecordStateMachine::canTransition(
-                $record->status,
-                CampaignRecord::STATUS_DELIVERED
-            ),
-        ]);
+        $previousStatus = $record->status;
 
         $transitioned = CampaignRecordStateMachine::transition($record, CampaignRecord::STATUS_DELIVERED);
 
@@ -139,6 +136,17 @@ class MessageDeliveryObserver
 
         if ($transitioned) {
             $statistic->increment('delivered');
+
+            // Decrement the previous status counter
+            switch ($previousStatus) {
+                case CampaignRecord::STATUS_READY:
+                    $statistic->decrement('sent');
+                    break;
+                default:
+                    $statistic->decrement($previousStatus);
+                    break;
+            }
+
             Log::debug('[MessageDeliveryObserver] Record marked as delivered', [
                 'campaign_record_id' => (string) $record->id,
                 'message_uuid'       => $messageUuid,
