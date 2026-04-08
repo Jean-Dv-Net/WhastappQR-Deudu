@@ -5,11 +5,10 @@ services:
       dockerfile: ./.docker/staging/nginx/Dockerfile
     volumes:
       - ../files/laravel-storage-staging:/var/www/storage
-      - ../certs/whatsappqr-test.deudu.co:/etc/ssl/certs/whatsappqr-test.deudu.co
     networks:
       - dokploy-network
     depends_on:
-      php-fpm:
+      php-fpm-whatsappqr-test:
         condition: service_healthy # Wait for php-fpm to start
     labels:
       - traefik.enable=true
@@ -17,11 +16,8 @@ services:
       # Router HTTP (redirige)
       - traefik.http.routers.whatsappqr-test-http.rule=Host(`whatsappqr-test.deudu.co`)
       - traefik.http.routers.whatsappqr-test-http.entrypoints=web
-      - traefik.http.routers.whatsappqr-test-http.middlewares=redirect-https
+      - traefik.http.routers.whatsappqr-test-http.middlewares=redirect-to-https@file
       - traefik.http.routers.whatsappqr-test-http.service=whatsappqr-test
-
-      # Middleware redirect
-      - traefik.http.middlewares.redirect-https.redirectscheme.scheme=https
 
       # Router HTTPS (APP)
       - traefik.http.routers.whatsappqr-test-https.rule=Host(`whatsappqr-test.deudu.co`)
@@ -39,9 +35,11 @@ services:
       - traefik.http.routers.whatsappqr-test-ws.entrypoints=websecure
       - traefik.http.routers.whatsappqr-test-ws.tls=true
       - traefik.http.routers.whatsappqr-test-ws.service=whatsappqr-test-ws
+      - traefik.http.middlewares.whatsappqr-ws-stripprefix.stripprefix.prefixes=/ws
+      - traefik.http.routers.whatsappqr-test-ws.middlewares=whatsappqr-ws-stripprefix
 
       - traefik.http.services.whatsappqr-test-ws.loadbalancer.server.port=8080
-  php-fpm:
+  php-fpm-whatsappqr-test:
     # For the php-fpm service, we will use our common PHP-FPM Dockerfile with the development target
     build:
       context: .
@@ -60,7 +58,7 @@ services:
       retries: 3
     networks:
       - dokploy-network
-  
+
   # The 'php-cli' service provides a command-line interface for running Artisan commands and other CLI tasks.
   # -----------------------------------------------------------
   # This is useful for running migrations, seeders, or any custom scripts.
@@ -114,7 +112,7 @@ services:
     restart: unless-stopped
     command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
     depends_on:
-      php-fpm:
+      php-fpm-whatsappqr-test:
         condition: service_healthy
 
 networks:

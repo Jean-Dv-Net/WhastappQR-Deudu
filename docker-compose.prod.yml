@@ -1,13 +1,10 @@
 services:
-  web:
+  web-whatsappqr-deudu:
     build:
       context: .
       dockerfile: ./.docker/production/nginx/Dockerfile
     volumes:
       - ../files/laravel-storage-prod:/var/www/storage
-      - ../certs/whatsappqr.deudu.co:/etc/ssl/certs/whatsappqr.deudu.co
-    ports:
-      - "8080:8080"
     ulimits:
       nofile:
         soft: 200000
@@ -15,7 +12,7 @@ services:
     networks:
       - dokploy-network
     depends_on:
-      php-fpm:
+      php-fpm-whatsappqr-deudu:
         condition: service_healthy # Wait for php-fpm to start
     labels:
       - traefik.enable=true
@@ -23,12 +20,8 @@ services:
       # Router HTTP
       - traefik.http.routers.whatsappqr-deudu-http.rule=Host(`whatsappqr.deudu.co`)
       - traefik.http.routers.whatsappqr-deudu-http.entrypoints=web
-      - traefik.http.routers.whatsappqr-deudu-http.middlewares=redirect-https-whatsappqr
-      - traefik.http.routers.whatsappqr-deudu-http.service=whatsappqr-deudu  # ✅ NUEVO
-
-      # Middleware
-      - traefik.http.middlewares.redirect-https-whatsappqr.redirectscheme.scheme=https
-      - traefik.http.middlewares.redirect-https-whatsappqr.redirectscheme.permanent=true
+      - traefik.http.routers.whatsappqr-deudu-http.middlewares=redirect-https@file
+      - traefik.http.routers.whatsappqr-deudu-http.service=whatsappqr-deudu
 
       # Router HTTPS
       - traefik.http.routers.whatsappqr-deudu-https.rule=Host(`whatsappqr.deudu.co`)
@@ -39,7 +32,19 @@ services:
       # Service
       - traefik.http.services.whatsappqr-deudu.loadbalancer.server.port=80
 
-  php-fpm:
+      # =========================
+      # WEBSOCKETS
+      # =========================
+      - traefik.http.routers.whatsappqr-deudu-ws.rule=Host(`whatsappqr.deudu.co`) && PathPrefix(`/ws`)
+      - traefik.http.routers.whatsappqr-deudu-ws.entrypoints=websecure
+      - traefik.http.routers.whatsappqr-deudu-ws.tls=true
+      - traefik.http.routers.whatsappqr-deudu-ws.service=whatsappqr-deudu-ws
+      - traefik.http.middlewares.whatsappqr-ws-stripprefix.stripprefix.prefixes=/ws
+      - traefik.http.routers.whatsappqr-deudu-ws.middlewares=whatsappqr-ws-stripprefix
+
+      - traefik.http.services.whatsappqr-deudu-ws.loadbalancer.server.port=8080
+
+  php-fpm-whatsappqr-deudu:
     # For the php-fpm service, we will use our common PHP-FPM Dockerfile with the development target
     build:
       context: .
@@ -59,7 +64,7 @@ services:
     networks:
       - dokploy-network
 
-  worker:
+  worker-whatsappqr-deudu:
     build:
       context: .
       dockerfile: ./.docker/common/php-fpm/Dockerfile
@@ -85,7 +90,7 @@ services:
   # It shares the same codebase and environment as the 'php-fpm' service.
   # The port can be configured via REVERB_PORT (default: 8080).
   # -----------------------------------------------------------
-  websocket:
+  websocket-whatsappqr-deudu:
     build:
       context: .
       dockerfile: ./.docker/common/php-fpm/Dockerfile
@@ -100,7 +105,7 @@ services:
     restart: unless-stopped
     command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
     depends_on:
-      php-fpm:
+      php-fpm-whatsappqr-deudu:
         condition: service_healthy
 
 networks:

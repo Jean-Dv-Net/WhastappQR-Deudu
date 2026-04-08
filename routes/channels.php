@@ -38,3 +38,10 @@ Broadcast::channel('messages.by_remote_phone_number.{remotePhoneNumber}', functi
     return true;
 });
 
+/**
+ * Broadcast channel for campaign done event to coordinator.
+ */
+Broadcast::channel('campaigns.finished.{coordinatorId}', function ($coordinatorId) {
+    return true;
+});
+

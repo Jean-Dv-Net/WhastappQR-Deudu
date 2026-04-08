@@ -131,6 +131,32 @@ class FilterableRequest extends FormRequest
         }
     }
 
+    public function getValueByField(string $field): mixed
+    {
+        $filter = array_filter($this->getFilters()->all(), function ($f) use ($field) {
+            return $f->getField() === $field;
+        });
+
+        if (empty($filter)) {
+            return null;
+        }
+
+        return $filter[0]->getValue();
+    }
+
+    public function remove(string $field): void
+    {
+        $filters = $this->getFilters()->all();
+
+        $filtered = array_filter($filters, function ($filter) use ($field) {
+            return $filter->getField() !== $field;
+        });
+
+        $filtered = array_values($filtered);
+
+        $this->filterCollection = new FilterCollection($filtered);
+    }
+
     /**
      * Get custom attributes for validator errors.
      */

@@ -4,19 +4,41 @@ namespace App\Services;
 
 use App\ValueObjects\Filter;
 use App\ValueObjects\FilterCollection;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use InvalidArgumentException;
+use MongoDB\BSON\UTCDateTime;
+use MongoDB\Laravel\Eloquent\Builder as EloquentBuilder;
+
+use function is_array;
 
 class QueryFilterService
 {
     /**
+     * @var array<string, string> Field casting rules
+     */
+    protected array $fieldCasts = [];
+
+    /**
+     * Set field casting rules for the filters.
+     * 
+     * @param array<string, string> $casts
+     * @return self
+     */
+    public function withCasts(array $casts): self
+    {
+        $this->fieldCasts = $casts;
+        return $this;
+    }
+
+    /**
      * Apply filters to an Eloquent query builder.
      *
-     * @param Builder $query The Eloquent query builder
+     * @param Builder|EloquentBuilder $query The Eloquent query builder
      * @param FilterCollection $filters The collection of filters to apply
-     * @return Builder The modified query builder
+     * @return Builder|EloquentBuilder The modified query builder
      */
-    public function apply(Builder $query, FilterCollection $filters): Builder
+    public function apply(Builder|EloquentBuilder $query, FilterCollection $filters): Builder|EloquentBuilder
     {
         if ($filters->isEmpty()) {
             return $query;
@@ -41,6 +63,34 @@ class QueryFilterService
         $field = $filter->getField();
         $operator = $filter->getOperator();
         $value = $filter->getValue();
+
+        if (isset($this->fieldCasts[$field]) && $this->fieldCasts[$field] === 'object_id' && $value !== null) {
+            if (is_array($value)) {
+                $value = array_map(fn($id) => $id instanceof \MongoDB\BSON\ObjectId ? $id : new \MongoDB\BSON\ObjectId($id), $value);
+            } else {
+                $value = $value instanceof \MongoDB\BSON\ObjectId ? $value : new \MongoDB\BSON\ObjectId($value);
+            }
+        }
+
+        // Cast datetime
+        if (isset($this->fieldCasts[$field]) && $this->fieldCasts[$field] === 'datetime' && $value !== null) {
+            if (is_array($value)) {
+                $value = array_map(
+                    fn($v) => new UTCDateTime(
+                        Carbon::parse($v, config('app.timezone'))
+                            ->utc()
+                            ->getTimestampMs()
+                    ),
+                    $value
+                );
+            } else {
+                $value = new UTCDateTime(
+                    Carbon::parse($value, config('app.timezone'))
+                        ->utc()
+                        ->getTimestampMs()
+                );
+            }
+        }
 
         match ($operator) {
             Filter::OPERATOR_EQUAL => $query->where($field, '=', $value),
