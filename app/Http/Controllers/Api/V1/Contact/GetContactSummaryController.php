@@ -236,14 +236,36 @@ class GetContactSummaryController extends Controller
             ->pluck('phone_number')
             ->toArray();
 
+        // 3. Identify orphaned contacts (debtor_id = null) that arrived
+        //    through this coordinator's channels but whose phone number
+        //    actually belongs to a debtor of ANOTHER coordinator. These are
+        //    the "Rosa sees a debtor of Erika" cases: the contact was never
+        //    linked at creation time, so it surfaces via the second branch
+        //    of the $or below even though the debtor today belongs to a
+        //    different coordinator in MySQL.
+        //    We collect the _id of those contacts so we can exclude them
+        //    from the orphan branch. Orphans whose number does NOT belong
+        //    to any other coordinator's debtor stay visible (those are
+        //    legitimate "unknown caller" cases that we want to keep).
+        $contactsToHide = $this->findOrphanContactsBelongingToOtherCoordinations(
+            $channelPhoneNumbers,
+            $coordinationId
+        );
+
+        $orphanBranch = [
+            'debtor_id' => null,
+            'channel_phone_number' => ['$in' => $channelPhoneNumbers],
+        ];
+
+        if (!empty($contactsToHide)) {
+            $orphanBranch['_id'] = ['$nin' => $contactsToHide];
+        }
+
         // Build $or conditions
         $orConditions = [
             '$or' => [
                 ['debtor_id' => ['$in' => $debtorIds]],
-                [
-                    'debtor_id' => null,
-                    'channel_phone_number' => ['$in' => $channelPhoneNumbers]
-                ]
+                $orphanBranch,
             ]
         ];
 
@@ -265,6 +287,85 @@ class GetContactSummaryController extends Controller
         }
 
         return $orConditions;
+    }
+
+
+    /**
+     * Returns the _id of orphaned contacts (debtor_id = null) that arrived
+     * through the given channels but whose phone number actually belongs
+     * to a debtor assigned to a coordinator OTHER than the one currently
+     * querying. These contacts must NOT appear in the current coordinator's
+     * listing.
+     *
+     * Orphans whose phone number does not match any debtor in MySQL are
+     * left alone (they remain visible to the coordinator who owns the
+     * channel — typical "unknown caller" case).
+     *
+     * Comparison is done on the last 10 digits of the phone number to
+     * tolerate format differences (with/without country code, leading +,
+     * spaces, etc.).
+     *
+     * @param array $channelPhoneNumbers Phone numbers of the coordinator's channels.
+     * @param int   $coordinationId      The coordinator currently querying.
+     * @return array Array of contact _id values to exclude from the orphan branch.
+     */
+    protected function findOrphanContactsBelongingToOtherCoordinations(
+        array $channelPhoneNumbers,
+        int $coordinationId
+    ): array {
+        if (empty($channelPhoneNumbers)) {
+            return [];
+        }
+
+        // Pull orphans from this coordinator's channels.
+        $orphans = \App\Models\Contact::whereNull('debtor_id')
+            ->whereIn('channel_phone_number', $channelPhoneNumbers)
+            ->get(['_id', 'remote_phone_number']);
+
+        if ($orphans->isEmpty()) {
+            return [];
+        }
+
+        // Map: last 10 digits of the phone -> contact _id(s).
+        // Multiple contacts can share the same phone suffix, so we keep them
+        // grouped.
+        $suffixToContactIds = [];
+        foreach ($orphans as $orphan) {
+            $digits = preg_replace('/\D/', '', (string) $orphan->remote_phone_number);
+            $suffix = substr($digits, -10);
+            if ($suffix === '' || strlen($suffix) < 10) {
+                continue;
+            }
+            $suffixToContactIds[$suffix][] = $orphan->_id;
+        }
+
+        if (empty($suffixToContactIds)) {
+            return [];
+        }
+
+        // Which of those suffixes belong to debtors of a DIFFERENT coordinator?
+        // MySQL `debtors.mobile` is stored as a 10-digit string in this DB,
+        // so a direct IN match works without normalization on the SQL side.
+        $conflictedMobiles = \App\Models\Debtor::whereIn('mobile', array_keys($suffixToContactIds))
+            ->where('coordinator_id', '!=', $coordinationId)
+            ->whereNotNull('coordinator_id')
+            ->pluck('mobile')
+            ->unique()
+            ->toArray();
+
+        if (empty($conflictedMobiles)) {
+            return [];
+        }
+
+        // Flatten to a single array of contact _id values.
+        $contactsToHide = [];
+        foreach ($conflictedMobiles as $mobile) {
+            if (!empty($suffixToContactIds[$mobile])) {
+                $contactsToHide = array_merge($contactsToHide, $suffixToContactIds[$mobile]);
+            }
+        }
+
+        return $contactsToHide;
     }
 
 
